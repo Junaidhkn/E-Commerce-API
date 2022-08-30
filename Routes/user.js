@@ -1,5 +1,6 @@
 const express = require('express');
 
+const User = require('./Models/User');
 const { verifyTokenAuthorization, verifyTokenAdmin } = require('./verifyToken');
 
 const router = express.Router();
@@ -59,6 +60,39 @@ router.get('/', verifyTokenAdmin, async (req, res) => {
 			? await User.find().sort({ _id: -1 }).limit(5)
 			: await User.find();
 		res.status(200).json(users);
+	} catch (err) {
+		res.status(500).json(err);
+	}
+});
+
+// Get User Stats
+
+router.get('/stats', verifyTokenAdmin, async (req, res) => {
+	const date = new Date();
+	const lastYear = new Date(date.setFullYear(date.getFullYear() - 1));
+
+	try {
+		const stats = await User.aggregate([
+			{
+				$match: {
+					createdAt: {
+						$gte: lastYear,
+					},
+				},
+			},
+			{
+				$project: {
+					$month: '$createdAt',
+				},
+			},
+			{
+				$group: {
+					_id: '$month',
+					total: { $sum: 1 },
+				},
+			},
+		]);
+		res.status(200).json(stats);
 	} catch (err) {
 		res.status(500).json(err);
 	}
